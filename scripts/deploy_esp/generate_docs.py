@@ -95,12 +95,11 @@ def find_files(cfg, path, filetype):
     file_paths = []
 
     for root, _, files in os.walk(path):
-        for file_name in files:
-            if file_name.endswith(filetype):
-                if file_name in excluded_files:
-                    continue
-
-                file_paths.append((root.split(str(path))[1][1:], file_name))
+        file_paths.extend(
+            (root.split(str(path))[1][1:], file_name)
+            for file_name in files
+            if file_name.endswith(filetype) and file_name not in excluded_files
+        )
 
     return file_paths
 
@@ -127,7 +126,10 @@ def copy_md_files(cfg, paths):
         except IOError as e:
             print(f"Unable to copy file. {e}")
 
-    shutil.copy(os.path.dirname(__file__)+"/style.css", os.path.join(out_path, "html"))
+    shutil.copy(
+        f"{os.path.dirname(__file__)}/style.css",
+        os.path.join(out_path, "html"),
+    )
 
 
 def create_html_from_md(cfg):
@@ -152,7 +154,7 @@ def create_html_from_md(cfg):
 
             html_content_from_md = markdown.markdown(md_content, extensions=['fenced_code'])
             if "split" in path:
-                with open(os.path.join(out_path, "html", path, file_name[:-3] + ".html"), 'w') as f:
+                with open(os.path.join(out_path, "html", path, f"{file_name[:-3]}.html"), 'w') as f:
                     # 'split' and 'input' directories are mirrored structures,
                     # 'split' contains articles separated by tags into files
                     # 'input' contains entire html files which are needed for generating hyperlinks in html footer
@@ -165,7 +167,7 @@ def create_html_from_md(cfg):
                     footer = f"\nVisit <a href=\"{mainpage_file_path}\">Main page</a> for more information."
                     f.write(html5_template + html_content_from_md + footer + "\n</body>\n</html>")
             else:
-                with open(os.path.join(out_path, "html", path, file_name[:-3] + ".html"), 'w') as f:
+                with open(os.path.join(out_path, "html", path, f"{file_name[:-3]}.html"), 'w') as f:
                     f.write(html5_template + html_content_from_md + "\n</body>\n</html>")
 
 
@@ -210,7 +212,7 @@ def write_md_sections(cfg, sections, file_path, file_name):
     out_path = cfg["out_path"]
 
     for tag, lines in sections:
-        with open(os.path.join(out_path, "split", file_path, file_name[:-3] + "_" + tag + ".md"), "w") as f:
+        with open(os.path.join(out_path, "split", file_path, f"{file_name[:-3]}_{tag}.md"), "w") as f:
             f.writelines(lines)
 
 

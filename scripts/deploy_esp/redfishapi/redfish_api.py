@@ -26,10 +26,7 @@ class NoTpmModuleException(Exception):
 def configure_logger(debug: bool, logfile: str):
     "Configure logger"
 
-    if debug:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
+    level = logging.DEBUG if debug else logging.INFO
     logger.setLevel(level)
 
     # stdout handler
@@ -126,7 +123,7 @@ class RedfishAPI:
                 raise e
 
         # by default we expect json data in POST and PATCH
-        if "headers" not in kwargs and method in ("post", "patch"):
+        if "headers" not in kwargs and method in {"post", "patch"}:
             kwargs["headers"] = {"content-type": "application/json"}
 
         # convert dict to json string
@@ -231,8 +228,7 @@ class RedfishAPI:
         """Sets pending attributes dictionary.
            For changes to be applied finalize_bios_settings() should be called.
         """
-        self._pending_bios_attributes = {}
-        self._pending_bios_attributes.update(bios_attributes)
+        self._pending_bios_attributes = {} | bios_attributes
 
     def print_system_info(self):
         "Print info about remote system"
@@ -606,14 +602,18 @@ class RedfishAPI:
         if boot_device == 'None':
             payload = {'Boot': {'BootSourceOverrideEnabled': 'Disabled'}}
         else:
-            payload = {'Boot': {
-                'BootSourceOverrideEnabled': 'Continuous' if not onetime
-                                             else 'Once',
-                'BootSourceOverrideTarget': boot_device
-            }}
+            payload = {
+                'Boot': {
+                    'BootSourceOverrideEnabled': 'Once'
+                    if onetime
+                    else 'Continuous',
+                    'BootSourceOverrideTarget': boot_device,
+                }
+            }
+
 
         # those targets require changing from Legacy to UEFI boot mode
-        if boot_device in ('UefiTarget', 'UefiHttp'):
+        if boot_device in {'UefiTarget', 'UefiHttp'}:
             payload['Boot']['BootSourceOverrideMode'] = 'UEFI'
 
         self._request("patch", endpoint, data=payload)

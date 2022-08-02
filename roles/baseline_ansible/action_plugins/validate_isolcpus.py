@@ -10,7 +10,7 @@ def parse_range(cpu_range):
         [x, y] = cpu_range.split('-')  # pylint: disable=invalid-name
         cpus = range(int(x), int(y)+1)
         if int(x) >= int(y):
-            raise ValueError("incorrect cpu range: " + cpu_range)
+            raise ValueError(f"incorrect cpu range: {cpu_range}")
     else:
         cpus = [int(cpu_range)]
     return cpus
@@ -28,7 +28,7 @@ class ActionModule(ActionBase):
     def run(self, tmp=None, task_vars=None):
         """Script entry function"""
         if task_vars is None:
-            task_vars = dict()
+            task_vars = {}
         result = super(ActionModule, self).run(tmp, task_vars)  # pylint: disable=super-with-arguments
         result['changed'] = False
         result['failed'] = False

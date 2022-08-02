@@ -54,7 +54,11 @@ def main():
 
     args = parse_args()
 
-    redfish_api.configure_logger(debug=False, logfile=os.path.splitext(os.path.basename(__file__))[0] + '.log')
+    redfish_api.configure_logger(
+        debug=False,
+        logfile=f'{os.path.splitext(os.path.basename(__file__))[0]}.log',
+    )
+
 
     # try to access Redfish management API with proxy, if passed by user
     proxies = None
@@ -89,8 +93,7 @@ def main():
     logger.info("--------")
     rapi.get_virtual_media_info()
 
-    status = rapi.get_secure_boot()
-    if status:
+    if status := rapi.get_secure_boot():
         logger.info('Secure Boot is enabled. Disabling it first to allow ESP provisioning ...')
         rapi.disable_secure_boot()
         rapi.finalize_bios_settings()

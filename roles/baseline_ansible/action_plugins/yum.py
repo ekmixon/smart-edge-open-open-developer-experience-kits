@@ -37,12 +37,10 @@ class ActionModule(ActionBase):
         print("  yum action plugin wrapper was called")
         del tmp  # tmp no longer has any effect
 
-        # Add/Change ansible_python_interpreter to python2 for CentOS 7.x and RHEL 7.x
-        # pylint: disable=f-string-without-interpolation
-        is_redhat_family_7 = \
-            self._templar.template("{{ (ansible_os_family == 'RedHat' and "
-                                   "ansible_distribution_version < '8') | bool }}")
-        if is_redhat_family_7:
+        if is_redhat_family_7 := self._templar.template(
+            "{{ (ansible_os_family == 'RedHat' and "
+            "ansible_distribution_version < '8') | bool }}"
+        ):
             if 'ansible_python_interpreter' in task_vars:
                 display.vv(f"Original ansible_python_interpreter: "
                            f"{task_vars['ansible_python_interpreter']}")
@@ -52,13 +50,11 @@ class ActionModule(ActionBase):
 
 
         command_action = \
-            self._shared_loader_obj.action_loader.get('ansible.builtin.yum',
+                self._shared_loader_obj.action_loader.get('ansible.builtin.yum',
                                              task=self._task,
                                              connection=self._connection,
                                              play_context=self._play_context,
                                              loader=self._loader,
                                              templar=self._templar,
                                              shared_loader_obj=self._shared_loader_obj)
-        result = command_action.run(task_vars=task_vars)
-
-        return result
+        return command_action.run(task_vars=task_vars)

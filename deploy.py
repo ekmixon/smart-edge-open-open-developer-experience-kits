@@ -204,11 +204,10 @@ def run_deployment(inventory, cleanup=False, redeploy=False):
         playbook = "network_edge_5g_cleanup.yml"
     elif extra_options_supported and redeploy:
         playbook = "network_edge_5g_redeploy.yml"
+    elif inventory.is_single_node:
+        playbook = "single_node_network_edge.yml"
     else:
-        if inventory.is_single_node:
-            playbook = "single_node_network_edge.yml"
-        else:
-            playbook = "network_edge.yml"
+        playbook = "network_edge.yml"
 
     playbook = os.path.join(SCRIPT_PARENT_DIR, playbook)
 
@@ -272,18 +271,12 @@ def print_log_line(line):
 
 def has_deployments_successful(deployments):
     """Check if whole deployment was successful"""
-    for deployment in deployments:
-        if not deployment.ended_successfully:
-            return False
-    return True
+    return all(deployment.ended_successfully for deployment in deployments)
 
 
 def has_deployments_ended(deployments):
     """Check if deployments has ended"""
-    for deployment in deployments:
-        if not deployment.has_ended:
-            return False
-    return True
+    return all(deployment.has_ended for deployment in deployments)
 
 
 def check_deployments_status(deployments, exit_on_error=False):
@@ -302,7 +295,7 @@ def check_deployments_status(deployments, exit_on_error=False):
                      "please check the log files for detailed deployment logs.")
 
     while not has_deployments_ended(deployments):
-        for _, deployment in enumerate(deployments):
+        for deployment in deployments:
             if deployment.process.poll() is None or deployment.has_ended:
                 pass
             elif deployment.process.poll() == 0:
