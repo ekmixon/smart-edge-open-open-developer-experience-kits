@@ -55,11 +55,12 @@ def check_stages(start_from, stages):
             if status_file.exists():
                 logging.info("Will rerun stage %s", other_stage_name)
                 status_file.unlink()
-        # if we have a split, don't interfere with other branch, but if those branches
-        # join back afterwards, remove resulting children and beyond.
         elif len(start_order) == 2:
-            if len(other_order) == 1 and start_order[0] < other_order[0] or \
-               len(other_order) == 2 and start_order == other_order:
-                if status_file.exists():
-                    status_file.unlink()
+            if (
+                len(other_order) == 1
+                and start_order[0] < other_order[0]
+                or len(other_order) == 2
+                and start_order == other_order
+            ) and status_file.exists():
+                status_file.unlink()
         # TODO: in case more nesting levels than 2 are required, support it here

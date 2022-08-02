@@ -89,16 +89,16 @@ def call_kubectl(kind, name, namespace, result):
         return (True, output)
     except ValueError as ex:
         result['failed'] = True
-        result['message'] = "ValueError: " + str(ex)
+        result['message'] = f"ValueError: {str(ex)}"
     except OSError as ex:
         result['rc'] = ex.errno
         result['failed'] = True
-        result['message'] = "OSError: " + ex.strerror
+        result['message'] = f"OSError: {ex.strerror}"
     except subprocess.CalledProcessError as ex:
         result['stdout'] = ex.output
         result['rc'] = ex.returncode
         result['failed'] = True
-        result['message'] = "CalledProcessError: " + str(ex)
+        result['message'] = f"CalledProcessError: {str(ex)}"
 
     return (False, output)
 
@@ -117,12 +117,10 @@ def check_daemonset(output):
             result = True
             message = "Daemonset seems to be running normally"
         else:
-            message = "Not enough available replicas {}/{}".format(
-                available, desired
-            )
+            message = f"Not enough available replicas {available}/{desired}"
     except KeyError as err:
-        message = "Could not find the {} field in status - most probably the amount is 0".\
-            format(",".join(err.args))
+        message = f'Could not find the {",".join(err.args)} field in status - most probably the amount is 0'
+
 
     return (result, message)
 
@@ -141,12 +139,10 @@ def check_statefulset(output):
             result = True
             message = "Statefulset seems to be running normally"
         else:
-            message = "Not enough ready replicas {}/{}".format(
-                ready_replicas, replicas
-            )
+            message = f"Not enough ready replicas {ready_replicas}/{replicas}"
     except KeyError as err:
-        message = "Could not find the {} field in status - most probably the amount is 0".\
-            format(",".join(err.args))
+        message = f'Could not find the {",".join(err.args)} field in status - most probably the amount is 0'
+
 
     return (result, message)
 
@@ -165,12 +161,10 @@ def check_deployment(output):
             result = True
             message = "Deployment seems to be running normally"
         else:
-            message = "Not enough available replicas {}/{}".format(
-                available, replicas
-            )
+            message = f"Not enough available replicas {available}/{replicas}"
     except KeyError as err:
-        message = "Could not find the {} field in status - most probably the amount is 0".\
-            format(",".join(err.args))
+        message = f'Could not find the {",".join(err.args)} field in status - most probably the amount is 0'
+
 
     return (result, message)
 

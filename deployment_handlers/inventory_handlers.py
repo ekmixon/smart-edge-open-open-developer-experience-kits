@@ -99,9 +99,7 @@ class InventoryHandler:
     def __load_inventory(self, inventory_path):
         with open(inventory_path, 'r') as inventory_stream:
             doc_iterator = yaml.load_all(inventory_stream, Loader=yaml.SafeLoader)
-            self.__inventories = []
-            for doc in doc_iterator:
-                self.__inventories.append(Inventory(doc))
+            self.__inventories = [Inventory(doc) for doc in doc_iterator]
 
     def __verify_cluster_names(self):
         cluster_names = []

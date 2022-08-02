@@ -95,10 +95,11 @@ yaml.add_representer(type(None), represent_none, Dumper=Dumper)
 # change an empty dict object representer in custom Dumper class (empty string instead of default '{}')
 def represent_dict(dumper, data):
     """ Custom representer for empty dict object """
-    if not data:
-        return dumper.represent_data(None)
-    else:
-        return dumper.represent_dict(data.items())
+    return (
+        dumper.represent_dict(data.items())
+        if data
+        else dumper.represent_data(None)
+    )
 yaml.add_representer(dict, represent_dict, Dumper=Dumper)
 
 
@@ -320,10 +321,12 @@ def check_repositories(config, args):
             verify_repo_status("ESP Profile", profile["url"], config, args)
             verified_repos.append(profile['url'])
 
-        if not is_profile_bare_os(profile):
-            if profile['experience_kit']['url'] not in verified_repos:
-                verify_repo_status("Experience Kit", profile["experience_kit"]["url"], config, args)
-                verified_repos.append(profile['experience_kit']['url'])
+        if (
+            not is_profile_bare_os(profile)
+            and profile['experience_kit']['url'] not in verified_repos
+        ):
+            verify_repo_status("Experience Kit", profile["experience_kit"]["url"], config, args)
+            verified_repos.append(profile['experience_kit']['url'])
 
 
 def get_version(command: str) -> tuple:
@@ -352,7 +355,7 @@ def get_version(command: str) -> tuple:
             f"cannot parse version string from `{command}` output\n"
             f"    {seo.error.TS_REF}")
 
-    version = match.group(0)
+    version = match[0]
     version = tuple(map(int, version.split(".")))
 
     logging.debug("Version parsed is %s", ".".join(map(str, version)))
@@ -464,11 +467,10 @@ def run_esp_script(cmd, workdir):
 
     logging.debug("Running command: %s", cmd)
     with subprocess.Popen(cmd, shell=True, cwd=workdir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, # nosec - B602
-                          universal_newlines=True) as proc:
+                              universal_newlines=True) as proc:
         try:
             while proc.poll() is None:
-                line = proc.stdout.readline()
-                if line:
+                if line := proc.stdout.readline():
                     # newlines are already contained in the output
                     print(line, end='')
 
@@ -519,7 +521,6 @@ def stop_esp(workdir):
 
 def run_esp(config, args):
     """ Executes ESP's run.sh script """
-    usb_boot_cmd = ['./run.sh', '--no-tail-logs', '--no-dnsmasq']
     pxe_boot_cmd = ['./run.sh', '--no-tail-logs']
 
     workdir = pathlib.Path(config['esp']['dest_dir'])
@@ -529,6 +530,7 @@ def run_esp(config, args):
             logging.warning("ESP seems already running. Stopping it first...")
             stop_esp(workdir)
         logging.info("Starting ESP...")
+        usb_boot_cmd = ['./run.sh', '--no-tail-logs', '--no-dnsmasq']
         run_esp_script(usb_boot_cmd, workdir)
 
     elif args.run_esp_for_pxe_boot:
@@ -567,14 +569,12 @@ def print_profile_credentials(config):
 def configure_se_profile_group_vars_all(cfg, profile_path):
     """ Configure profile's group_vars/all.yml file based on config variables and env vars """
 
-    all_vars = {}
-    all_vars['git_repo_token'] = cfg['git']['password']
-
-    proxy = {}
-    for p in ['http_proxy', 'https_proxy', 'no_proxy', 'ftp_proxy']:
-        if os.environ.get(p) is not None:
-            proxy[p] = os.environ[p]
-    if proxy:
+    all_vars = {'git_repo_token': cfg['git']['password']}
+    if proxy := {
+        p: os.environ[p]
+        for p in ['http_proxy', 'https_proxy', 'no_proxy', 'ftp_proxy']
+        if os.environ.get(p) is not None
+    }:
         all_vars['proxy_env'] = proxy
 
     if cfg['ntp_server']:
@@ -594,13 +594,18 @@ def configure_se_profile_customize_vars(profile, profile_path):
 
     items = []
     if 'group_vars' in profile and 'groups' in profile['group_vars']:
-        for group_name, body in profile['group_vars']['groups'].items():
-            if body is not None:
-                items.append((group_name, body, f"group_vars/{group_name}.yml"))
+        items.extend(
+            (group_name, body, f"group_vars/{group_name}.yml")
+            for group_name, body in profile['group_vars']['groups'].items()
+            if body is not None
+        )
+
     if 'host_vars' in profile and 'hosts' in profile['host_vars']:
-        for host_name, body in profile['host_vars']['hosts'].items():
-            if body is not None:
-                items.append((host_name, body, f"host_vars/{host_name}.yml"))
+        items.extend(
+            (host_name, body, f"host_vars/{host_name}.yml")
+            for host_name, body in profile['host_vars']['hosts'].items()
+            if body is not None
+        )
 
     # serialize vars
     for name, body, seo_path in items:
@@ -701,10 +706,10 @@ def configure_se_profile_customize_inventory(profile, profile_path):
                     for host_name in hosts.keys():
                         if host_name not in HOST_NAMES:
                             logging.warning("Inventory group contains unsupported host name: %s", host_name)
-                        else:
-                            # when dumping for controller's multi-node, skip over node group hosts
-                            if mode == 'only_controller' and host_name != 'controller':
-                                continue
+                        elif (
+                            mode != 'only_controller'
+                            or host_name == 'controller'
+                        ):
                             # insert new items if not existing yet
                             inventory_groups[group_name]['hosts'].setdefault(host_name)
             if inventory_groups:
@@ -743,7 +748,7 @@ def global_bmc_and_bios_configuration(config):
     variables = dict(_DEFAULT_BIOS)
 
     if 'bmc' in config:
-        variables.update(config['bmc'])
+        variables |= config['bmc']
 
     if 'bios' in config:
         variables.update(config['bios'])
@@ -763,7 +768,7 @@ def configure_profile_settings(config, profile, profile_path):
     if 'controlplane_mac' in profile and profile['controlplane_mac']:
         variables['controller_mac'] = profile['controlplane_mac']
 
-    variables.update(global_bmc_and_bios_configuration(config))
+    variables |= global_bmc_and_bios_configuration(config)
 
     if 'bios' in profile:
         variables.update(profile['bios'])
@@ -797,12 +802,12 @@ def configure_se_profile_sideload_files(profile, profile_path):
             logging.debug("Purging file in sideload dir: %s", p.name)
             shutil.rmtree(sideload_dir / p.name)
 
-    cmd_tmpl = 'mkdir -p %(parent_dir)s\n' \
-    'wget --header "Authorization: token ${param_token}" -O "%(dest_path)s" ' \
-    '"${param_bootstrapurl}/files/seo/sideload/%(sideload_path)s"\n'
-
     output = ''
     if 'sideload' in profile and profile['sideload'] is not None:
+        cmd_tmpl = 'mkdir -p %(parent_dir)s\n' \
+        'wget --header "Authorization: token ${param_token}" -O "%(dest_path)s" ' \
+        '"${param_bootstrapurl}/files/seo/sideload/%(sideload_path)s"\n'
+
         for idx, item in enumerate(profile['sideload']):
             file_path = pathlib.Path(item['file_path'])
             dest_path = pathlib.Path(item['dest_path'])
@@ -991,7 +996,7 @@ def configure_esp(config):
     esp_config_fullpath = pathlib.PurePath(config['esp']['dest_dir']) / "conf/config.yml"
 
     # backup existing config (only first time script runs, otherwise we would repeatedly overwrite backup file)
-    bak_file = str(esp_config_fullpath) + '.bak'
+    bak_file = f'{str(esp_config_fullpath)}.bak'
     if not pathlib.Path(bak_file).exists():
         logging.debug("Backing up file %s to %s", esp_config_fullpath, bak_file)
         try:
@@ -1105,10 +1110,9 @@ def credentials_check_needed():
     status_files = [
         v['status_file'] for k, v in STAGES.items()
         if k in ['clone-esp', 'configure-esp', 'configure-profiles']]
-    for status_file in status_files:
-        if not pathlib.Path(status_file).exists():
-            return True
-    return False
+    return any(
+        not pathlib.Path(status_file).exists() for status_file in status_files
+    )
 
 
 def preconditions_check_needed():
@@ -1138,7 +1142,7 @@ def configure_profile_hosts_specific_settings(config, profile, profile_path):
                         host_variables[name] = host[name]
 
                 if 'bmc' in host:
-                    host_variables.update(host['bmc'])
+                    host_variables |= host['bmc']
 
                 if 'bios' in host:
                     host_variables.update(host['bios'])

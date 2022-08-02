@@ -65,7 +65,11 @@ def main():
 
     args = parse_args()
 
-    redfish_api.configure_logger(debug=False, logfile=os.path.splitext(os.path.basename(__file__))[0] + '.log')
+    redfish_api.configure_logger(
+        debug=False,
+        logfile=f'{os.path.splitext(os.path.basename(__file__))[0]}.log',
+    )
+
 
     # try to access Redfish management API with proxy, if passed by user
     proxies = None

@@ -81,8 +81,7 @@ def get_config(config_file_path):
     logging.debug("Trying to read and parse provisioning configuration file ('%s')", config_file_path)
 
     try:
-        with open(config_file_path) as config_file:
-            raw_config = config_file.read()
+        raw_config = pathlib.Path(config_file_path).read_text()
     except (FileNotFoundError, PermissionError) as e:
         raise seo.error.AppException(
             seo.error.Codes.ARGUMENT_ERROR,
@@ -239,7 +238,15 @@ def generate_command(config, dev_path, profile, bios):
             "Installation image couldn't be found in expected location:\n"
             f"    {image_path}")
 
-    return ['./flashusb.sh', '-d', str(dev_path), '-i', ("../" + str(image_path)), '-b', str(bios)]
+    return [
+        './flashusb.sh',
+        '-d',
+        str(dev_path),
+        '-i',
+        f"../{str(image_path)}",
+        '-b',
+        str(bios),
+    ]
 
 
 def run_flash_usb_script(config, cmd):
@@ -262,8 +269,7 @@ def run_flash_usb_script(config, cmd):
                 if proc.stdout is None:
                     continue
 
-                line = proc.stdout.readline()
-                if line:
+                if line := proc.stdout.readline():
                     # newlines are already contained in the output
                     print(line, end='')
 
@@ -316,15 +322,13 @@ def main(args):
 
     cfg = get_config(args.config_file)
     dev_path = pathlib.Path(args.dev_path)
-    url = args.image_url
+    if url := args.image_url:
+        cmd = ['./flashusb.sh', '-d', str(dev_path), '-u', str(url)]
 
-    if not url:
+    else:
         profile = choose_profile(cfg)
         bios = choose_bios(cfg)
         cmd = generate_command(cfg, dev_path, profile, bios)
-    else:
-        cmd = ['./flashusb.sh', '-d', str(dev_path), '-u', str(url)]
-
     run_flash_usb_script(cfg, cmd)
 
     return seo.error.Codes.NO_ERROR
